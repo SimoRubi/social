@@ -4,8 +4,8 @@ with open('VERSION.txt', 'r') as f:
     version = f.read().strip()
 
 setuptools.setup(
-    name="odoo10-addons-oca-social",
-    description="Meta package for oca-social Odoo addons",
+    name="odoo10-addons-simorubi-social",
+    description="Meta package for simorubi-social Odoo addons",
     version=version,
     install_requires=[
         'odoo10-addon-base_search_mail_content',
