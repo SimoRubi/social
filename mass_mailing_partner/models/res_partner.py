@@ -36,17 +36,29 @@ class ResPartner(models.Model):
                     _("This partner '%s' is subscribed to one or more "
                       "mailing lists. Email must be assigned.") % partner.name)
 
+    @api.multi
     @api.depends('mass_mailing_contact_ids',
                  'mass_mailing_contact_ids.opt_out')
     def _compute_mass_mailing_contacts_count(self):
-        for reg in self:
-            reg.mass_mailing_contacts_count = len(
-                reg.mass_mailing_contact_ids)
+        contact_data = self.env['mail.mass_mailing.contact'].read_group(
+            [('partner_id', 'in', self.ids)], ['partner_id'], ['partner_id'])
+        mapped_data = dict(
+            [(contact['partner_id'][0], contact['partner_id_count'])
+             for contact in contact_data])
+        for partner in self:
+            partner.mass_mailing_contacts_count = mapped_data.get(partner.id,
+                                                                  0)
 
+    @api.multi
     @api.depends('mass_mailing_stats')
     def _compute_mass_mailing_stats_count(self):
-        for reg in self:
-            reg.mass_mailing_stats_count = len(reg.mass_mailing_stats)
+        contact_data = self.env['mail.mail.statistics'].read_group(
+            [('partner_id', 'in', self.ids)], ['partner_id'], ['partner_id'])
+        mapped_data = dict(
+            [(contact['partner_id'][0], contact['partner_id_count'])
+             for contact in contact_data])
+        for partner in self:
+            partner.mass_mailing_stats_count = mapped_data.get(partner.id, 0)
 
     def write(self, vals):
         res = super(ResPartner, self).write(vals)
@@ -55,8 +67,9 @@ class ResPartner(models.Model):
             if vals.get('name'):
                 mm_vals['name'] = vals['name']
             if vals.get('email'):
-                mm_vals['name'] = vals['email']
-            self.env["mail.mass_mailing.contact"].search([
+                mm_vals['email'] = vals['email']
+            # Using sudo because ACLs shouldn't produce data inconsistency
+            self.env["mail.mass_mailing.contact"].sudo().search([
                 ("partner_id", "in", self.ids),
             ]).write(mm_vals)
         return res
